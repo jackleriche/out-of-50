@@ -1,0 +1,218 @@
+/*
+ * Marketing page. Every value is a token from globals.css — see src/lib/theme.ts.
+ *
+ * All rules are namespaced .m- so nothing here can collide with the app's
+ * scoresheet styles, which share the same stylesheet at runtime.
+ */
+
+.m {
+  --m-width: 1120px;
+  --m-mega: 76px;
+  width: 100%;
+  background: var(--c-sheet);
+  color: var(--c-ink);
+}
+
+.m :where(section) {
+  padding: 0;
+  border: none;
+}
+
+/* --- nav ------------------------------------------------------------ */
+
+.m-nav {
+  max-width: var(--m-width);
+  margin: 0 auto;
+  padding: var(--s-24);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid var(--c-rule);
+}
+
+.m-mark {
+  font-family: var(--f-mono);
+  font-size: var(--t-body);
+  letter-spacing: .04em;
+}
+.m-mark-num { color: var(--c-biro); font-weight: 600; }
+
+.m-nav-links { display: flex; gap: var(--s-24); align-items: center; }
+.m-nav-links a { color: var(--c-ink); text-decoration: none; font-size: var(--t-body); }
+.m-nav-links a:hover { color: var(--c-biro); }
+
+/* --- shared --------------------------------------------------------- */
+
+.m-eyebrow, .m-cap {
+  font-family: var(--f-mono);
+  font-size: var(--t-micro);
+  letter-spacing: .16em;
+  text-transform: uppercase;
+  color: var(--c-muted);
+  margin: 0;
+}
+.m-cap--pen { color: var(--c-fault); }
+
+.m-h1 {
+  font-size: var(--t-hero);
+  line-height: 1.02;
+  letter-spacing: -.035em;
+  font-weight: 600;
+  margin: var(--s-16) 0 var(--s-24);
+}
+.m-h1-sub { display: block; color: var(--c-muted); font-weight: 400; }
+.m-h1--end { margin: 0 0 var(--s-32); }
+
+.m-h2 {
+  font-size: var(--t-title);
+  letter-spacing: -.02em;
+  font-weight: 600;
+  margin: 0 0 var(--s-16);
+}
+.m-h3 { font-size: var(--t-lead); font-weight: 600; margin: var(--s-12) 0 var(--s-8); }
+
+.m-lead { font-size: var(--t-lead); line-height: 1.5; color: var(--c-muted); margin: 0 0 var(--s-32); max-width: 34em; }
+.m-body { font-size: var(--t-body); line-height: 1.65; color: var(--c-muted); margin: 0; max-width: 42em; }
+.m-fine { font-family: var(--f-mono); font-size: var(--t-small); color: var(--c-muted); margin: var(--s-16) 0 0; }
+
+.m-btn {
+  display: inline-block;
+  background: var(--c-biro);
+  color: var(--c-sheet);
+  padding: var(--s-16) var(--s-32);
+  text-decoration: none;
+  font-size: var(--t-body);
+  font-weight: 500;
+  border-radius: var(--r-sharp);
+}
+.m-btn:hover { background: var(--c-ink); }
+.m-btn--small { padding: var(--s-8) var(--s-16); }
+.m-nav-links .m-btn:hover { color: var(--c-sheet); }
+
+.m-ghost {
+  display: inline-block;
+  padding: var(--s-16) var(--s-24);
+  color: var(--c-ink);
+  text-decoration: none;
+  font-size: var(--t-body);
+  border-bottom: 1px solid var(--c-rule);
+}
+.m-ghost:hover { border-bottom-color: var(--c-biro); color: var(--c-biro); }
+
+.m-cta-row { display: flex; gap: var(--s-16); align-items: center; flex-wrap: wrap; }
+.m-cta-row--centre { justify-content: center; }
+
+/* --- hero ----------------------------------------------------------- */
+
+.m-hero {
+  max-width: var(--m-width);
+  margin: 0 auto;
+  padding: var(--s-48) var(--s-24);
+  display: grid;
+  grid-template-columns: 1.1fr .9fr;
+  gap: var(--s-48);
+  align-items: center;
+}
+
+/* The signature element: a scoresheet, marked up in red pen. */
+.m-card {
+  margin: 0;
+  background: var(--c-paper);
+  border: 1px solid var(--c-rule);
+  border-radius: var(--r-sharp);
+  padding: var(--s-24);
+}
+.m-card-head { border-bottom: 1px solid var(--c-rule); padding-bottom: var(--s-12); margin-bottom: var(--s-8); }
+.m-card-name { display: block; font-size: var(--t-lead); font-weight: 600; margin-top: var(--s-4); }
+
+.m-rows { margin: 0; }
+.m-row {
+  display: flex; justify-content: space-between; align-items: baseline;
+  padding: var(--s-8) 0;
+  border-bottom: 1px dashed var(--c-rule);
+}
+.m-row dt { font-size: var(--t-body); }
+.m-row dd { margin: 0; font-family: var(--f-mono); font-size: var(--t-body); }
+.m-val { color: var(--c-biro); font-weight: 500; }
+.m-max { color: var(--c-muted); font-size: var(--t-small); }
+
+.m-total {
+  display: flex; justify-content: space-between; align-items: baseline;
+  padding: var(--s-16) 0 var(--s-24);
+}
+.m-total-num {
+  font-family: var(--f-mono); font-size: var(--t-display);
+  color: var(--c-biro); font-weight: 500; letter-spacing: -.03em;
+}
+
+/* Red pen. Used here and nowhere else on the page except the fault list. */
+.m-pen {
+  border-top: 1px solid var(--c-fault);
+  padding-top: var(--s-16);
+}
+.m-pen-said { font-size: var(--t-small); color: var(--c-muted); margin: 0; }
+.m-pen-said em { font-style: italic; color: var(--c-ink); }
+.m-pen-name {
+  font-size: var(--t-title); font-weight: 600; color: var(--c-fault);
+  margin: var(--s-4) 0 var(--s-8); letter-spacing: -.02em;
+}
+.m-pen-fix { font-size: var(--t-body); line-height: 1.55; margin: 0; }
+
+/* --- bands ---------------------------------------------------------- */
+
+.m-band { background: var(--c-ground); border-top: 1px solid var(--c-rule); border-bottom: 1px solid var(--c-rule); }
+.m-band-inner { max-width: var(--m-width); margin: 0 auto; padding: var(--s-48) var(--s-24); }
+
+.m-strip { position: relative; height: 32px; margin-top: var(--s-32); max-width: 42em; }
+.m-strip-rule { position: absolute; bottom: 0; left: 0; right: 0; height: 1px; background: var(--c-rule); }
+.m-dot {
+  position: absolute; bottom: -5px; width: 11px; height: 11px; margin-left: -5px;
+  border-radius: var(--r-round); background: var(--c-biro); border: 2px solid var(--c-ground);
+}
+.m-strip-cap { margin-top: var(--s-16); }
+
+.m-split { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s-48); margin-top: var(--s-32); max-width: 42em; }
+.m-words { list-style: none; padding: 0; margin: var(--s-12) 0 0; }
+.m-words li { font-size: var(--t-body); padding: var(--s-8) 0; border-bottom: 1px dashed var(--c-rule); }
+.m-words--pen li { color: var(--c-fault); font-weight: 500; }
+
+/* --- steps ---------------------------------------------------------- */
+
+.m-steps { max-width: var(--m-width); margin: 0 auto; padding: var(--s-48) var(--s-24); }
+.m-step-list {
+  list-style: none; padding: 0;
+  margin: var(--s-32) 0 0;
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--s-32);
+}
+.m-step-list li { border-top: 1px solid var(--c-ink); padding-top: var(--s-16); }
+.m-step-n { font-family: var(--f-mono); font-size: var(--t-small); color: var(--c-biro); letter-spacing: .1em; }
+
+/* --- two-up + end --------------------------------------------------- */
+
+.m-two {
+  max-width: var(--m-width); margin: 0 auto;
+  padding: var(--s-48) var(--s-24);
+  display: grid; grid-template-columns: 1fr 1fr; gap: var(--s-48);
+}
+
+.m-end { max-width: var(--m-width); margin: 0 auto; padding: var(--s-48) var(--s-24); text-align: center; }
+
+.m-foot {
+  max-width: var(--m-width); margin: 0 auto;
+  padding: var(--s-24);
+  border-top: 1px solid var(--c-rule);
+  display: flex; justify-content: space-between; gap: var(--s-24); flex-wrap: wrap;
+}
+
+/* --- narrow --------------------------------------------------------- */
+
+@media (max-width: 860px) {
+  .m-hero { grid-template-columns: 1fr; gap: var(--s-32); padding: var(--s-32) var(--s-24); }
+  .m-step-list, .m-two, .m-split { grid-template-columns: 1fr; gap: var(--s-24); }
+  .m-h1 { font-size: var(--t-display); }
+  .m-band-inner, .m-steps, .m-two, .m-end { padding: var(--s-32) var(--s-24); }
+}
+
+@media (min-width: 1100px) {
+  .m-h1 { font-size: var(--m-mega); }
+}
