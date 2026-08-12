@@ -1,0 +1,349 @@
+// ---------------------------------------------------------------------------
+// BJCP scoring app — Prisma schema
+// Postgres. Every model here traces back to a decision made in design.
+// ---------------------------------------------------------------------------
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// --- enums -----------------------------------------------------------------
+
+enum ShareLinkKind {
+  invite // single-use tokens, identity known at issue time
+  open // QR or pasted link, unknown submitters
+  competition // reserved seam — anonymity forced, entries assigned
+}
+
+enum BlindMode {
+  off
+  guess_then_reveal
+}
+
+enum DescriptorCategory {
+  aroma
+  appearance
+  flavour
+  mouthfeel
+}
+
+enum DescriptorKind {
+  character
+  fault
+}
+
+enum Intensity {
+  slight
+  noticeable
+  strong
+}
+
+enum ReviewStatus {
+  draft // survives a dropped connection mid-barbecue
+  submitted
+}
+
+enum ConsentSource {
+  guest_review
+}
+
+// --- people ----------------------------------------------------------------
+
+// Brewers, and reviewers who later claim an account. One table — a user can be
+// both. Reviewers are deliberately NOT required to exist.
+model User {
+  id            String    @id @default(uuid())
+  email         String    @unique
+  name          String?
+  emailVerified DateTime?
+  image         String?
+  createdAt     DateTime  @default(now())
+
+  beers    Beer[]
+  reviews  Review[]
+  accounts Account[]
+  sessions Session[]
+
+  @@map("users")
+}
+
+// --- reference data --------------------------------------------------------
+
+// BJCP guidelines. Seeded. Licensing to be confirmed before commercial use.
+model Style {
+  id       String @id // "21B"
+  name     String
+  category String
+  year     Int
+
+  ogMin  Decimal? @db.Decimal(5, 3)
+  ogMax  Decimal? @db.Decimal(5, 3)
+  fgMin  Decimal? @db.Decimal(5, 3)
+  fgMax  Decimal? @db.Decimal(5, 3)
+  abvMin Decimal? @db.Decimal(4, 2)
+  abvMax Decimal? @db.Decimal(4, 2)
+  ibuMin Int?
+  ibuMax Int?
+  srmMin Decimal? @db.Decimal(4, 1)
+  srmMax Decimal? @db.Decimal(4, 1)
+
+  overallImpression String? @db.Text
+  aroma             String? @db.Text
+  appearance        String? @db.Text
+  flavour           String? @db.Text
+  mouthfeel         String? @db.Text
+
+  beers    Beer[]
+  guessedIn Review[] @relation("StyleGuess")
+
+  @@map("styles")
+}
+
+// Plain-language vocabulary shown to reviewers. The fault mapping lives here
+// and must never be selected in any query that serves the reviewer client.
+model Descriptor {
+  id       String             @id @default(uuid())
+  label    String // "Buttery / butterscotch" — what the reviewer sees
+  category DescriptorCategory
+  kind     DescriptorKind
+
+  // Brewer-side only. Never ship these three columns to a reviewer.
+  faultName    String?
+  likelyCause  String? @db.Text
+  suggestedFix String? @db.Text
+
+  reviews ReviewDescriptor[]
+
+  @@unique([label, category])
+  @@map("descriptors")
+}
+
+// --- beers -----------------------------------------------------------------
+
+model Beer {
+  id       String @id @default(uuid())
+  brewerId String
+  brewer   User   @relation(fields: [brewerId], references: [id], onDelete: Cascade)
+
+  name    String
+  styleId String
+  style   Style  @relation(fields: [styleId], references: [id])
+
+  batchNo String?
+  abv     Decimal? @db.Decimal(4, 2)
+  ibu     Int?
+  og      Decimal? @db.Decimal(5, 3)
+  fg      Decimal? @db.Decimal(5, 3)
+  srm     Decimal? @db.Decimal(4, 1) // recipe-calculated, compared against what reviewers see
+
+  brewedOn    DateTime? @db.Date // scoredAt − brewedOn = beer age at tasting
+  packagedOn  DateTime? @db.Date
+  notes       String?   @db.Text // brewer's own; never exposed to reviewers
+  imageUrl    String?
+  createdAt   DateTime  @default(now())
+
+  shareLinks ShareLink[]
+  reviews    Review[]
+  summaries  BeerSummary[]
+
+  @@index([brewerId])
+  @@map("beers")
+}
+
+// Carries everything that governs HOW a review is collected, so one beer can
+// go out to different audiences under different rules.
+model ShareLink {
+  id     String @id @default(uuid())
+  beerId String
+  beer   Beer   @relation(fields: [beerId], references: [id], onDelete: Cascade)
+
+  token String        @unique // url-safe, embedded in the QR
+  kind  ShareLinkKind
+
+  blindMode BlindMode @default(off)
+
+  // IMMUTABLE. Enforced by a trigger — see constraints.sql. Reviewers are shown
+  // this promise before they score, so it cannot be flipped afterwards.
+  anonymous Boolean
+
+  maxUses   Int?
+  expiresAt DateTime? // a printed label outlives the beer
+  revokedAt DateTime?
+  createdAt DateTime  @default(now())
+
+  invites Invite[]
+  reviews Review[]
+
+  @@index([beerId])
+  @@map("share_links")
+}
+
+model Invite {
+  id          String    @id @default(uuid())
+  shareLinkId String
+  shareLink   ShareLink @relation(fields: [shareLinkId], references: [id], onDelete: Cascade)
+
+  email String
+  name  String?
+  token String  @unique // single use
+
+  sentAt        DateTime?
+  openedAt      DateTime?
+  submittedAt   DateTime?
+  reminderCount Int       @default(0) // cron: 24h, 48h, 1 week — stops on submit
+
+  review Review?
+
+  @@unique([shareLinkId, email])
+  @@index([shareLinkId])
+  @@map("invites")
+}
+
+// --- scoring ---------------------------------------------------------------
+
+model Review {
+  id          String    @id @default(uuid())
+  beerId      String
+  beer        Beer      @relation(fields: [beerId], references: [id], onDelete: Cascade)
+  shareLinkId String
+  shareLink   ShareLink @relation(fields: [shareLinkId], references: [id])
+
+  inviteId String? @unique
+  invite   Invite? @relation(fields: [inviteId], references: [id])
+
+  reviewerUserId String?
+  reviewer       User?   @relation(fields: [reviewerUserId], references: [id])
+
+  isGuest      Boolean @default(true)
+  deviceId     String? // retro-links a guest's history when they later sign up
+  displayName  String?
+  contactEmail String?
+
+  // Snapshot of the link's setting at insert. Never read the live ShareLink
+  // value when rendering — a review keeps the promise it was collected under.
+  anonymous Boolean
+
+  styleGuessId String?
+  styleGuess   Style?  @relation("StyleGuess", fields: [styleGuessId], references: [id])
+
+  // BJCP 50. Ranges enforced by check constraints — see constraints.sql.
+  // No skipping: every submitted sheet must produce a valid /50.
+  aroma      Int
+  appearance Int
+  flavour    Int
+  mouthfeel  Int
+  overall    Int
+  // total is NOT stored — it is the sum of the five and is computed on read.
+  // A stored copy is one more thing to drift.
+
+  // Unscored diagnostics. Do not fold these into the total.
+  trueToStyle Int? // 1–5
+  perceivedSrm Decimal? @db.Decimal(4, 1)
+
+  aromaNotes      String? @db.Text
+  appearanceNotes String? @db.Text
+  flavourNotes    String? @db.Text
+  mouthfeelNotes  String? @db.Text
+  overallNotes    String? @db.Text
+
+  status    ReviewStatus @default(draft)
+  scoredAt  DateTime     @default(now())
+  createdAt DateTime     @default(now())
+
+  descriptors ReviewDescriptor[]
+
+  @@index([beerId, status])
+  @@index([shareLinkId])
+  @@map("reviews")
+}
+
+model ReviewDescriptor {
+  reviewId     String
+  review       Review     @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+  descriptorId String
+  descriptor   Descriptor @relation(fields: [descriptorId], references: [id])
+
+  intensity Intensity
+
+  @@id([reviewId, descriptorId])
+  @@index([descriptorId])
+  @@map("review_descriptors")
+}
+
+// Cached generation. Minimum 3 reviews, refreshed as more arrive. The generator
+// is fed computed statistics only — never the raw notes.
+model BeerSummary {
+  id          String   @id @default(uuid())
+  beerId      String
+  beer        Beer     @relation(fields: [beerId], references: [id], onDelete: Cascade)
+  summary     String   @db.Text
+  reviewCount Int
+  model       String
+  generatedAt DateTime @default(now())
+
+  @@index([beerId, generatedAt])
+  @@map("beer_summaries")
+}
+
+// Separate from User deliberately — a guest who ticks the box isn't a user yet.
+// Consent is unbundled from submission: the score saves either way.
+model Consent {
+  id        String        @id @default(uuid())
+  email     String
+  source    ConsentSource
+  wording   String        @db.Text // exact copy shown at the time
+  grantedAt DateTime      @default(now())
+  revokedAt DateTime?
+  ip        String?
+
+  @@index([email])
+  @@map("consents")
+}
+
+
+// --- Auth.js (email magic link) --------------------------------------------
+// Brewers get real accounts. Reviewers deliberately do not need one.
+
+model Account {
+  id                String  @id @default(uuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@map("accounts")
+}
+
+model Session {
+  id           String   @id @default(uuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+  @@map("verification_tokens")
+}

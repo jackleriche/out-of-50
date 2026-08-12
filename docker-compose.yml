@@ -1,0 +1,21 @@
+# Local Postgres. Everything else about this app assumes real Postgres —
+# check constraints, and the triggers that make anonymity and blind mode
+# immutable — so testing against SQLite would test something you never ship.
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: bjcp
+      POSTGRES_PASSWORD: bjcp
+      POSTGRES_DB: bjcp
+    ports:
+      - "5432:5432"
+    volumes:
+      - bjcp-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U bjcp"]
+      interval: 5s
+      retries: 10
+
+volumes:
+  bjcp-data:
